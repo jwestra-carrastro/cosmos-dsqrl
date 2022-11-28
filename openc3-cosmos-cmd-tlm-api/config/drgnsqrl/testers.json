@@ -1,0 +1,32 @@
+{
+    "DEV": {
+        "id": 0,
+        "description": "Development configuration where all cards are available",
+        "cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"]
+    },
+    "PCC": {
+        "id": 1,
+        "description": "Power Converter Card",
+        "cards": ["PCC"]
+    },
+    "DIG": {
+        "id": 2,
+        "description": "Digitizer Card",
+        "cards": ["DIG"]
+    },
+    "LPCLSC": {
+        "id": 3,
+	"description": "Laser Pump and Seed Cards",
+        "cards": ["LPC", "LSC"]
+    },
+    "OC_FEICMDC": {
+        "id": 4,
+        "description": "Ocellus Front-end Interface and Mirror Driver Cards",
+        "cards": ["OC_FEIC", "OC_MDC"]
+    },
+    "SQ_FEICMDC": {
+        "id": 5,
+        "description": "SQRLi Front-end Interface and Mirror Driver Cards",
+        "cards": ["SQ_FEIC", "SQ_MDC"]
+    }
+}
