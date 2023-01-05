@@ -14,6 +14,13 @@ TARGET:
         it can be different to create multiple targets based on the same target folder.
       values: .*
   modifiers:
+    CMD_BUFFER_DEPTH:
+      summary: Number of commands to buffer to ensure logged in order
+      parameters:
+        - name: Buffer Depth
+          required: true
+          description: Buffer depth in packets (Default = 5)
+          values: \d+
     CMD_LOG_CYCLE_TIME:
       summary: Command binary logs can be cycled on a time interval.
       parameters:
@@ -55,6 +62,13 @@ TARGET:
         - name: Time
           required: true
           description: Number of seconds to keep decom command logs (default = nil = Forever)
+          values: \d+
+    TLM_BUFFER_DEPTH:
+      summary: Number of telemetry packets to buffer to ensure logged in order
+      parameters:
+        - name: Buffer Depth
+          required: true
+          description: Buffer depth in packets (Default = 60)
           values: \d+
     TLM_LOG_CYCLE_TIME:
       summary: Telemetry binary logs can be cycled on a time interval.
@@ -140,3 +154,22 @@ TARGET:
           required: true
           description: Number of seconds between runs of the cleanup process (default = 900 = 15 minutes)
           values: \d+
+    TARGET_MICROSERVICE:
+      summary: Breaks a target microservice out into its own process.
+        Can be used to give more resources to processing that is falling behind.
+        If defined multiple times for the same type, will create multiple processes.
+        Each process can be given specific packets to process with the PACKET keyword.
+      parameters:
+        - name: Type
+          required: true
+          description: The target microservice type. Must be one of
+            DECOM, COMMANDLOG, DECOMCMDLOG, PACKETLOG, DECOMLOG, REDUCER, or CLEANUP
+          values: .*
+    PACKET:
+      summary: Packet Name to allocate to the current TARGET_MICROSERVICE.
+      parameters:
+        - name: Packet Name
+          required: true
+          description: The packet name. Does not apply to
+            REDUCER or CLEANUP target microservice types.
+          values: .*

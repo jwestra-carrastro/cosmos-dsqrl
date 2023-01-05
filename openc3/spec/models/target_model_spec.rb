@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'spec_helper'
@@ -372,15 +372,6 @@ module OpenC3
       end
     end
 
-    describe "as_config" do
-      it "exports model as OpenC3 configuration" do
-        model = TargetModel.new(folder_name: "TEST", name: "TEST", scope: "DEFAULT")
-        expect(model.as_config).to match(/TARGET TEST/)
-        model = TargetModel.new(folder_name: "TEST", name: "TEST2", scope: "DEFAULT")
-        expect(model.as_config).to match(/TARGET TEST TEST2/)
-      end
-    end
-
     describe "handle_config" do
       it "parses tool specific keywords" do
         model = TargetModel.new(folder_name: "TEST", name: "TEST", scope: "DEFAULT")
@@ -481,13 +472,14 @@ module OpenC3
       it "creates and deploys Target microservices" do
         variables = { "test" => "example" }
         umodel = double(MicroserviceModel)
-        expect(umodel).to receive(:create).exactly(6).times
-        expect(umodel).to receive(:deploy).with(@target_dir, variables).exactly(6).times
+        expect(umodel).to receive(:create).exactly(7).times
+        expect(umodel).to receive(:deploy).with(@target_dir, variables).exactly(7).times
         # Verify the microservices that are started
         expect(MicroserviceModel).to receive(:new).with(hash_including(
-          name: "#{@scope}__COMMANDLOG__#{@target}",
-          plugin: 'PLUGIN'
-          )).and_return(umodel)
+                                                          name: "#{@scope}__COMMANDLOG__#{@target}",
+                                                          plugin: 'PLUGIN',
+                                                          scope: @scope
+                                                        )).and_return(umodel)
         expect(MicroserviceModel).to receive(:new).with(hash_including(
                                                           name: "#{@scope}__DECOMCMDLOG__#{@target}",
                                                           plugin: 'PLUGIN',
@@ -510,6 +502,11 @@ module OpenC3
                                                         )).and_return(umodel)
         expect(MicroserviceModel).to receive(:new).with(hash_including(
                                                           name: "#{@scope}__REDUCER__#{@target}",
+                                                          plugin: 'PLUGIN',
+                                                          scope: @scope
+                                                        )).and_return(umodel)
+        expect(MicroserviceModel).to receive(:new).with(hash_including(
+                                                          name: "#{@scope}__MULTI__#{@target}",
                                                           plugin: 'PLUGIN',
                                                           scope: @scope
                                                         )).and_return(umodel)
@@ -615,8 +612,8 @@ module OpenC3
         orig_keys << "openc3_microservices"
 
         umodel = double(MicroserviceModel)
-        expect(umodel).to receive(:destroy).exactly(14).times
-        expect(MicroserviceModel).to receive(:get_model).and_return(umodel).exactly(14).times
+        expect(umodel).to receive(:destroy).exactly(16).times
+        expect(MicroserviceModel).to receive(:get_model).and_return(umodel).exactly(16).times
         inst_model = TargetModel.new(folder_name: "INST", name: "INST", scope: "DEFAULT", plugin: "INST_PLUGIN")
         inst_model.create
         inst_model.deploy(@target_dir, {})

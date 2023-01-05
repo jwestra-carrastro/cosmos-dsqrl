@@ -27,6 +27,8 @@ require 'openc3/config/config_parser'
 
 module OpenC3
   class LogMicroservice < Microservice
+    DEFAULT_BUFFER_DEPTH = 60 # 1 minutes at 1Hz
+
     def initialize(name)
       super(name)
       @config['options'].each do |option|
@@ -42,7 +44,7 @@ module OpenC3
         when 'BUFFER_DEPTH' # Buffer depth to write in time order
           @buffer_depth = option[1].to_i
         else
-          Logger.error("Unknown option passed to microservice #{@name}: #{option}")
+          @logger.error("Unknown option passed to microservice #{@name}: #{option}")
         end
       end
 
@@ -52,7 +54,7 @@ module OpenC3
       @cycle_time = 600 unless @cycle_time # 10 minutes
       @cycle_size = 50_000_000 unless @cycle_size # ~50 MB
 
-      @buffer_depth = 10 unless @buffer_depth
+      @buffer_depth = DEFAULT_BUFFER_DEPTH unless @buffer_depth
     end
 
     def run
@@ -107,7 +109,7 @@ module OpenC3
       @metric.add_sample(name: "log_duration_seconds", value: diff, labels: metric_labels)
     rescue => err
       @error = err
-      Logger.error("#{@name} error: #{err.formatted}")
+      @logger.error("#{@name} error: #{err.formatted}")
     end
 
     def shutdown

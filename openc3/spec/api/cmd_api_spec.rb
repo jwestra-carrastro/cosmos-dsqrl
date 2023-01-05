@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'spec_helper'
@@ -42,7 +42,7 @@ module OpenC3
       model = TargetModel.new(folder_name: 'INST', name: 'INST', scope: "DEFAULT")
       model.create
       model.update_store(System.new(['INST'], File.join(SPEC_DIR, 'install', 'config', 'targets')))
-      model = InterfaceModel.new(name: "INST_INT", scope: "DEFAULT", target_names: ["INST"], config_params: ["interface.rb"])
+      model = InterfaceModel.new(name: "INST_INT", scope: "DEFAULT", target_names: ["INST"], cmd_target_names: ["INST"], tlm_target_names: ["INST"], config_params: ["interface.rb"])
       model.create
       model = InterfaceStatusModel.new(name: "INST_INT", scope: "DEFAULT", state: "ACTIVE")
       model.create
@@ -53,6 +53,9 @@ module OpenC3
       @interface = Interface.new
       @interface.name = "INST_INT"
       @interface.target_names = %w[INST]
+      @interface.cmd_target_names = %w[INST]
+      @interface.tlm_target_names = %w[INST]
+
       # Stub to make the InterfaceCmdHandlerThread happy
       @interface_data = ''
       allow(@interface).to receive(:connected?).and_return(true)
@@ -149,7 +152,8 @@ module OpenC3
       it "times out if the interface does not process the command" do
         begin
           @process = false
-          expect { @api.cmd("INST", "ABORT") }.to raise_error("Timeout waiting for cmd ack")
+          expect { @api.cmd("INST", "ABORT") }.to raise_error("Timeout of 5s waiting for cmd ack")
+          expect { @api.cmd("INST", "ABORT", timeout: 1) }.to raise_error("Timeout of 1s waiting for cmd ack")
         ensure
           @process = true
         end

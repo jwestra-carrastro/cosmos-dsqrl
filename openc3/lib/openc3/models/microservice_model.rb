@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'openc3/top_level'
@@ -38,6 +38,7 @@ module OpenC3
     attr_accessor :topics
     attr_accessor :work_dir
     attr_accessor :ports
+    attr_accessor :parent
 
     # NOTE: The following three class methods are used by the ModelController
     # and are reimplemented to enable various Model class methods to work
@@ -90,6 +91,7 @@ module OpenC3
       topics: [],
       target_names: [],
       options: [],
+      parent: nil,
       container: nil,
       updated_at: nil,
       plugin: nil,
@@ -113,6 +115,7 @@ module OpenC3
       @topics = topics
       @target_names = target_names
       @options = options
+      @parent = parent
       @container = container
       @needs_dependencies = needs_dependencies
       @bucket = Bucket.getClient()
@@ -129,34 +132,12 @@ module OpenC3
         'topics' => @topics,
         'target_names' => @target_names,
         'options' => @options,
+        'parent' => @parent,
         'container' => @container,
         'updated_at' => @updated_at,
         'plugin' => @plugin,
         'needs_dependencies' => @needs_dependencies,
       }
-    end
-
-    def as_config
-      result = "MICROSERVICE #{@folder_name ? @folder_name : 'nil'} #{@name.split("__")[-1]}\n"
-      result << "  CMD #{@cmd.join(' ')}\n"
-      result << "  WORK_DIR \"#{@work_dir}\"\n"
-      @ports.each do |port|
-        result << "  PORT #{port}\n"
-      end
-      @topics.each do |topic_name|
-        result << "  TOPIC #{topic_name}\n"
-      end
-      @target_names.each do |target_name|
-        result << "  TARGET_NAME #{target_name}\n"
-      end
-      @env.each do |key, value|
-        result << "  ENV #{key} \"#{value}\"\n"
-      end
-      @options.each do |option|
-        result << "  OPTION #{option.join(" ")}\n"
-      end
-      result << "  CONTAINER #{@container}\n" if @container != 'openc3-base'
-      result
     end
 
     def handle_config(parser, keyword, parameters)
@@ -236,6 +217,8 @@ module OpenC3
         @bucket.delete_object(bucket: ENV['OPENC3_CONFIG_BUCKET'], key: object.key)
       end
       ConfigTopic.write({ kind: 'deleted', type: 'microservice', name: @name, plugin: @plugin }, scope: @scope)
+    rescue Exception => error
+      Logger.error("Error undeploying microservice model #{@name} in scope #{@scope} due to #{error}")
     end
   end
 end

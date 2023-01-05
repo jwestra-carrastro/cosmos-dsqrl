@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'openc3/models/target_model'
@@ -49,12 +49,12 @@ module OpenC3
         ].each do |prefix, retain_time|
           next unless retain_time
           time = start_time - retain_time
-          oldest_list = BucketUtilities.list_files_before_time(ENV['OPENC3_LOGS_BUCKET'], prefix, time)
+          oldest_list = BucketUtilities.files_between_time(ENV['OPENC3_LOGS_BUCKET'], prefix, nil, time)
           if oldest_list.length > 0
             @state = 'DELETING_OBJECTS'
             oldest_list.each_slice(1000) do |slice|
               bucket.delete_objects(bucket: ENV['OPENC3_LOGS_BUCKET'], keys: slice)
-              Logger.info("Deleted #{slice.length} #{target_name} log files")
+              @logger.info("Deleted #{slice.length} #{target_name} log files")
             end
           end
         end

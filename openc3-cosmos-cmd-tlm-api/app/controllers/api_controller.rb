@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'openc3/utilities/open_telemetry'
@@ -40,9 +40,16 @@ class ApiController < ApplicationController
           OpenC3::Logger.debug("API headers: #{request_headers}", scope: params[:scope], user: user_info(request.headers['HTTP_AUTHORIZATION']))
           status, content_type, body = handle_post(request_data, request_headers)
         rescue OpenC3::AuthError => error
+          id = 1
+          begin
+            parsed = JSON.parse(request_data, :allow_nan => true)
+            id = Integer(parsed['id'])
+          rescue
+            OpenC3::Logger.warn("Unable to extract id from JSON-RPC message")
+          end
           error_code = OpenC3::JsonRpcError::ErrorCode::AUTH_ERROR
           response = OpenC3::JsonRpcErrorResponse.new(
-            OpenC3::JsonRpcError.new(error_code, error.message, error), request.id
+            OpenC3::JsonRpcError.new(error_code, error.message, error), id
           )
           status = 401
           content_type = "application/json-rpc"
@@ -93,6 +100,7 @@ class ApiController < ApplicationController
       when OpenC3::JsonRpcError::ErrorCode::INTERNAL_ERROR   then status = 500 # Internal server error
       when OpenC3::JsonRpcError::ErrorCode::AUTH_ERROR       then status = 401
       when OpenC3::JsonRpcError::ErrorCode::FORBIDDEN_ERROR  then status = 403
+      when OpenC3::JsonRpcError::ErrorCode::HAZARDOUS_ERROR  then status = 409 # Server conflict
       else status = 500 # Internal server error
       end
       # Note we don't log an error here because it's logged in JsonDRb::process_request

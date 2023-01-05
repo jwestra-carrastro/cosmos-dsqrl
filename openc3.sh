@@ -37,19 +37,19 @@ case $1 in
     # Source the .env file to setup environment variables
     set -a
     . "$(dirname -- "$0")/.env"
-    # Start (and remove when done --rm) the openc3-base container with the current working directory
+    # Start (and remove when done --rm) the openc3-operator container with the current working directory
     # mapped as volume (-v) /openc3/local and container working directory (-w) also set to /openc3/local.
     # This allows tools running in the container to have a consistent path to the current working directory.
     # Run the command "ruby /openc3/bin/openc3cli" with all parameters starting at 2 since the first is 'openc3'
     args=`echo $@ | { read _ args; echo $args; }`
-    docker run --rm --env-file "$(dirname -- "$0")/.env" -v `pwd`:/openc3/local -w /openc3/local openc3inc/openc3-base:$OPENC3_TAG ruby /openc3/bin/openc3cli $args
+    docker run --rm --env-file "$(dirname -- "$0")/.env" -v `pwd`:/openc3/local -w /openc3/local openc3inc/openc3-operator:$OPENC3_TAG ruby /openc3/bin/openc3cli $args
     set +a
     ;;
   cliroot )
     set -a
     . "$(dirname -- "$0")/.env"
     args=`echo $@ | { read _ args; echo $args; }`
-    docker run --rm --env-file "$(dirname -- "$0")/.env" --user=root -v `pwd`:/openc3/local -w /openc3/local openc3inc/openc3-base:$OPENC3_TAG ruby /openc3/bin/openc3cli $args
+    docker run --rm --env-file "$(dirname -- "$0")/.env" --user=root -v `pwd`:/openc3/local -w /openc3/local openc3inc/openc3-operator:$OPENC3_TAG ruby /openc3/bin/openc3cli $args
     set +a
     ;;
   start )

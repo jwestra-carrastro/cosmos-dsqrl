@@ -42,21 +42,23 @@ module OpenC3
     attr_accessor :error
     attr_accessor :custom
     attr_accessor :scope
+    attr_accessor :logger
 
-    def self.run
-      microservice = self.new(ENV['OPENC3_MICROSERVICE_NAME'])
+    def self.run(name = nil)
+      name = ENV['OPENC3_MICROSERVICE_NAME'] unless name
+      microservice = self.new(name)
       begin
         MicroserviceStatusModel.set(microservice.as_json(:allow_nan => true), scope: microservice.scope)
         microservice.state = 'RUNNING'
         microservice.run
         microservice.state = 'FINISHED'
       rescue Exception => err
-        if err.class == SystemExit or err.class == Interrupt
+        if SystemExit === err or SignalException === err
           microservice.state = 'KILLED'
         else
           microservice.error = err
           microservice.state = 'DIED_ERROR'
-          Logger.fatal("Microservice #{ENV['OPENC3_MICROSERVICE_NAME']} dying from exception\n#{err.formatted}")
+          Logger.fatal("Microservice #{name} dying from exception\n#{err.formatted}")
         end
       ensure
         MicroserviceStatusModel.set(microservice.as_json(:allow_nan => true), scope: microservice.scope)
@@ -84,11 +86,13 @@ module OpenC3
 
       @scope = split_name[0]
       $openc3_scope = @scope
-      Logger.scope = @scope
       @cancel_thread = false
       @metric = Metric.new(microservice: @name, scope: @scope)
+      Logger.scope = @scope
       Logger.microservice_name = @name
-      Logger.tag = @name + "__openc3.log"
+      @logger = Logger.new
+      @logger.scope = @scope
+      @logger.microservice_name = @name
 
       OpenC3.setup_open_telemetry(@name, false)
 
@@ -104,7 +108,7 @@ module OpenC3
         @config = {}
         @plugin = nil
       end
-      Logger.info("Microservice initialized with config:\n#{@config}")
+      @logger.info("Microservice initialized with config:\n#{@config}")
       @topics ||= []
 
       # Get configuration for any targets
@@ -122,9 +126,9 @@ module OpenC3
       @custom = nil
       @state = 'INITIALIZED'
       metric_name = "metric_output_duration_seconds"
+      @work_dir = @config["work_dir"]
 
       if is_plugin
-        @work_dir = @config["work_dir"]
         cmd_array = @config["cmd"]
 
         # Get Microservice files from bucket storage
@@ -160,12 +164,12 @@ module OpenC3
               # Run ruby syntax so we can log those
               syntax_check, _ = Open3.capture2e("ruby -c #{ruby_filename}")
               if /Syntax OK/.match?(syntax_check)
-                Logger.info("Ruby microservice #{@name} file #{ruby_filename} passed syntax check\n", scope: @scope)
+                @logger.info("Ruby microservice #{@name} file #{ruby_filename} passed syntax check\n", scope: @scope)
               else
-                Logger.error("Ruby microservice #{@name} file #{ruby_filename} failed syntax check\n#{syntax_check}", scope: @scope)
+                @logger.error("Ruby microservice #{@name} file #{ruby_filename} failed syntax check\n#{syntax_check}", scope: @scope)
               end
             else
-              Logger.error("Ruby microservice #{@name} file #{ruby_filename} does not exist", scope: @scope)
+              @logger.error("Ruby microservice #{@name} file #{ruby_filename} does not exist", scope: @scope)
             end
           end
         end
@@ -182,7 +186,7 @@ module OpenC3
             break if @microservice_sleeper.sleep(@microservice_status_period_seconds)
           end
         rescue Exception => err
-          Logger.error "#{@name} status thread died: #{err.formatted}"
+          @logger.error "#{@name} status thread died: #{err.formatted}"
           raise err
         end
       end
@@ -194,13 +198,13 @@ module OpenC3
     end
 
     def shutdown
-      Logger.info("Shutting down microservice: #{@name}")
+      @logger.info("Shutting down microservice: #{@name}")
       @cancel_thread = true
       @microservice_sleeper.cancel if @microservice_sleeper
       MicroserviceStatusModel.set(as_json(:allow_nan => true), scope: @scope)
       FileUtils.remove_entry(@temp_dir) if File.exist?(@temp_dir)
       @metric.destroy
-      Logger.info("Shutting down microservice complete: #{@name}")
+      @logger.info("Shutting down microservice complete: #{@name}")
     end
   end
 end

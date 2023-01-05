@@ -31,6 +31,7 @@ require 'openc3/io/stderr'
 require 'childprocess'
 require 'openc3/script/suite_runner'
 require 'openc3/utilities/store'
+require 'openc3/models/offline_access_model'
 
 RAILS_ROOT = File.expand_path(File.join(__dir__, '..', '..'))
 
@@ -40,7 +41,7 @@ module OpenC3
     # Define all the user input methods used in scripting which we need to broadcast to the frontend
     # Note: This list matches the list in run_script.rb:112
     SCRIPT_METHODS = %i[ask ask_string message_box vertical_message_box combo_box prompt prompt_for_hazardous
-       input_metadata open_file_dialog open_files_dialog]
+      metadata_input open_file_dialog open_files_dialog]
     SCRIPT_METHODS.each do |method|
       define_method(method) do |*args, **kwargs|
         while true
@@ -251,14 +252,16 @@ class RunningScript
   @@cancel_limits = false
 
   def self.message_log(id = @@id)
-    unless @@message_log
-      if @@instance
-        @@message_log = OpenC3::MessageLog.new("sr", File.join(RAILS_ROOT, 'log'), scope: @@instance.scope)
-      else
-        @@message_log = OpenC3::MessageLog.new("sr", File.join(RAILS_ROOT, 'log'), scope: $openc3_scope)
-      end
+    return @@message_log if @@message_log
+
+    if @@instance
+      scope =  @@instance.scope
+      tags = [File.basename(@@instance.filename, '.rb').gsub(/(\s|\W)/, '_')]
+    else
+      scope = $openc3_scope
+      tags = []
     end
-    return @@message_log
+    @@message_log = OpenC3::MessageLog.new("sr", File.join(RAILS_ROOT, 'log'), tags: tags, scope: scope)
   end
 
   def message_log
@@ -295,7 +298,7 @@ class RunningScript
     end
   end
 
-  def self.spawn(scope, name, suite_runner = nil, disconnect = false, environment = nil)
+  def self.spawn(scope, name, suite_runner = nil, disconnect = false, environment = nil, username: '')
     runner_path = File.join(RAILS_ROOT, 'scripts', 'run_script.rb')
     running_script_id = OpenC3::Store.incr('running-script-id')
     if RUBY_ENGINE != 'ruby'
@@ -325,6 +328,10 @@ class RunningScript
     process.io.inherit! # Helps with debugging
     process.cwd = File.join(RAILS_ROOT, 'scripts')
 
+    # Check for offline access token
+    model = nil
+    model = OpenC3::OfflineAccessModel.get_model(name: username, scope: scope) if username and username != ''
+
     # Set proper secrets for running script
     process.environment['SECRET_KEY_BASE'] = nil
     process.environment['OPENC3_REDIS_USERNAME'] = ENV['OPENC3_SR_REDIS_USERNAME']
@@ -335,10 +342,25 @@ class RunningScript
     process.environment['OPENC3_SR_REDIS_PASSWORD'] = nil
     process.environment['OPENC3_SR_BUCKET_USERNAME'] = nil
     process.environment['OPENC3_SR_BUCKET_PASSWORD'] = nil
-    process.environment['OPENC3_API_USER'] = ENV['OPENC3_API_USER']
-    process.environment['OPENC3_API_PASSWORD'] = ENV['OPENC3_API_PASSWORD'] || ENV['OPENC3_SERVICE_PASSWORD']
     process.environment['OPENC3_API_CLIENT'] = ENV['OPENC3_API_CLIENT']
-    process.environment['OPENC3_API_SECRET'] = ENV['OPENC3_API_SECRET']
+    if model and model.offline_access_token
+      auth = OpenC3::OpenC3KeycloakAuthentication.new(ENV['OPENC3_KEYCLOAK_URL'])
+      valid_token = auth.get_token_from_refresh_token(model.offline_access_token)
+      if valid_token
+        process.environment['OPENC3_API_TOKEN'] = model.offline_access_token
+      else
+        model.offline_access_token = nil
+        model.update
+        raise "offline_access token invalid for script"
+      end
+    else
+      process.environment['OPENC3_API_USER'] = ENV['OPENC3_API_USER']
+      if ENV['OPENC3_API_PASSWORD'] || ENV['OPENC3_SERVICE_PASSWORD']
+        process.environment['OPENC3_API_PASSWORD'] = ENV['OPENC3_API_PASSWORD'] || ENV['OPENC3_SERVICE_PASSWORD']
+      else
+        raise "No authentication available for script"
+      end
+    end
     process.environment['GEM_HOME'] = ENV['GEM_HOME']
 
     # Spawned process should not be controlled by same Bundler constraints as spawning process
@@ -891,20 +913,6 @@ class RunningScript
       $stderr.remove_stream(@output_io)
     end
   end
-
-  # TODO: Do we still want a 'Locals' button ... not sure how useful this is
-  #     @locals_button = Qt::PushButton.new('Locals')
-  #     @locals_button.connect(SIGNAL('clicked(bool)')) do
-  #       next unless @script_binding
-  #       @locals_button.setEnabled(false)
-  #       vars = @script_binding.local_variables.map(&:to_s)
-  #       puts "Locals: #{vars.reject {|x| INSTANCE_VARS.include?(x)}.sort.join(', ')}"
-  #       while @output_io.string[-1..-1] == "\n"
-  #         Qt::CoreApplication.processEvents()
-  #       end
-  #       @locals_button.setEnabled(true)
-  #     end
-  #     @debug_frame.addWidget(@locals_button)
 
   def self.set_breakpoint(filename, line_number)
     @@breakpoints[filename] ||= {}

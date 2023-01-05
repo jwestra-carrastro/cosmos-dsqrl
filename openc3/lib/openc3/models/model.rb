@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'openc3/utilities/store'
@@ -128,7 +128,7 @@ module OpenC3
       result
     end
 
-    def self.handle_config(parser, model, keyword, parameters)
+    def self.handle_config(parser, keyword, parameters)
       raise "must be implemented by subclass"
     end
 
@@ -191,11 +191,6 @@ module OpenC3
         'updated_at' => @updated_at,
         'plugin' => @plugin,
         'scope' => @scope }
-    end
-
-    # TODO: Not currently used but may be used by a XTCE or other format to OpenC3 conversion
-    def as_config
-      ""
     end
   end
 

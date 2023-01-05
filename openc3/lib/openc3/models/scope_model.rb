@@ -22,12 +22,15 @@
 
 require 'openc3/version'
 require 'openc3/models/model'
+require 'openc3/models/plugin_model'
 require 'openc3/models/microservice_model'
 require 'openc3/models/settings_model'
 
 module OpenC3
   class ScopeModel < Model
     PRIMARY_KEY = 'openc3_scopes'
+
+    attr_accessor :children
 
     # NOTE: The following three class methods are used by the ModelController
     # and are reimplemented to enable various Model class methods to work
@@ -62,6 +65,7 @@ module OpenC3
 
     def initialize(name:, updated_at: nil, scope: nil)
       super(PRIMARY_KEY, name: name, scope: name, updated_at: updated_at)
+      @children = []
     end
 
     def create(update: false, force: false)
@@ -89,15 +93,7 @@ module OpenC3
         'updated_at' => @updated_at }
     end
 
-    def deploy(gem_path, variables)
-      seed_database()
-      ConfigTopic.initialize_stream(@scope)
-
-      # Create UNKNOWN target for display of unknown data
-      model = TargetModel.new(name: "UNKNOWN", scope: @scope)
-      model.create
-
-      # OpenC3 Log Microservice
+    def deploy_openc3_log_messages_microservice(gem_path, variables, parent)
       microservice_name = "#{@scope}__OPENC3__LOG"
       microservice = MicroserviceModel.new(
         name: microservice_name,
@@ -109,13 +105,16 @@ module OpenC3
           # ["CYCLE_SIZE", "50_000_000"] # Keep at most ~50MB per log
         ],
         topics: ["#{@scope}__openc3_log_messages"],
+        parent: parent,
         scope: @scope
       )
       microservice.create
       microservice.deploy(gem_path, variables)
+      @children << microservice_name if parent
       Logger.info "Configured microservice #{microservice_name}"
+    end
 
-      # Notification Log Microservice
+    def deploy_openc3_notifications_microservice(gem_path, variables, parent)
       microservice_name = "#{@scope}__NOTIFICATION__LOG"
       microservice = MicroserviceModel.new(
         name: microservice_name,
@@ -126,13 +125,16 @@ module OpenC3
           ["CYCLE_TIME", "3600"], # Keep at most 1 hour per log
         ],
         topics: ["#{@scope}__openc3_notifications"],
+        parent: parent,
         scope: @scope
       )
       microservice.create
       microservice.deploy(gem_path, variables)
+      @children << microservice_name if parent
       Logger.info "Configured microservice #{microservice_name}"
+    end
 
-      # UNKNOWN CommandLog Microservice
+    def deploy_unknown_commandlog_microservice(gem_path, variables, parent)
       Topic.initialize_streams(["#{@scope}__COMMAND__{UNKNOWN}__UNKNOWN"])
       microservice_name = "#{@scope}__COMMANDLOG__UNKNOWN"
       microservice = MicroserviceModel.new(
@@ -146,13 +148,16 @@ module OpenC3
         ],
         topics: ["#{@scope}__COMMAND__{UNKNOWN}__UNKNOWN"],
         target_names: [],
+        parent: parent,
         scope: @scope
       )
       microservice.create
       microservice.deploy(gem_path, variables)
+      @children << microservice_name if parent
       Logger.info "Configured microservice #{microservice_name}"
+    end
 
-      # UNKNOWN PacketLog Microservice
+    def deploy_unknown_packetlog_microservice(gem_path, variables, parent)
       Topic.initialize_streams(["#{@scope}__TELEMETRY__{UNKNOWN}__UNKNOWN"])
       microservice_name = "#{@scope}__PACKETLOG__UNKNOWN"
       microservice = MicroserviceModel.new(
@@ -166,6 +171,37 @@ module OpenC3
         ],
         topics: ["#{@scope}__TELEMETRY__{UNKNOWN}__UNKNOWN"],
         target_names: [],
+        parent: parent,
+        scope: @scope
+      )
+      microservice.create
+      microservice.deploy(gem_path, variables)
+      @children << microservice_name if parent
+      Logger.info "Configured microservice #{microservice_name}"
+    end
+
+    def deploy_periodic_microservice(gem_path, variables, parent)
+      microservice_name = "#{@scope}__PERIODIC__#{@scope}"
+      microservice = MicroserviceModel.new(
+        name: microservice_name,
+        cmd: ["ruby", "periodic_microservice.rb", microservice_name],
+        work_dir: '/openc3/lib/openc3/microservices',
+        parent: parent,
+        scope: @scope
+      )
+      microservice.create
+      microservice.deploy(gem_path, variables)
+      @children << microservice_name if parent
+      Logger.info "Configured microservice #{microservice_name}"
+    end
+
+    def deploy_scopemulti_microservice(gem_path, variables)
+      microservice_name = "#{@scope}__SCOPEMULTI__#{@scope}"
+      microservice = MicroserviceModel.new(
+        name: microservice_name,
+        cmd: ["ruby", "multi_microservice.rb", *@children],
+        work_dir: '/openc3/lib/openc3/microservices',
+        target_names: [],
         scope: @scope
       )
       microservice.create
@@ -173,7 +209,40 @@ module OpenC3
       Logger.info "Configured microservice #{microservice_name}"
     end
 
+    def deploy(gem_path, variables)
+      seed_database()
+      ConfigTopic.initialize_stream(@scope)
+
+      # Create UNKNOWN target for display of unknown data
+      model = TargetModel.new(name: "UNKNOWN", scope: @scope)
+      model.create
+      # Not deployed - we only want raw packet logging for UNKNOWN
+      # TODO: Cleanup support
+
+      @parent = "#{@scope}__SCOPEMULTI__#{@scope}"
+
+      # OpenC3 Log Microservice
+      deploy_openc3_log_messages_microservice(gem_path, variables, @parent)
+
+      # Notification Log Microservice
+      deploy_openc3_notifications_microservice(gem_path, variables, @parent)
+
+      # UNKNOWN CommandLog Microservice
+      deploy_unknown_commandlog_microservice(gem_path, variables, @parent)
+
+      # UNKNOWN PacketLog Microservice
+      deploy_unknown_packetlog_microservice(gem_path, variables, @parent)
+
+      # Periodic Microservice
+      deploy_periodic_microservice(gem_path, variables, @parent)
+
+      # Multi Microservice to parent other scope microservices
+      deploy_scopemulti_microservice(gem_path, variables)
+    end
+
     def undeploy
+      model = MicroserviceModel.get_model(name: "#{@scope}__SCOPEMULTI__#{@scope}", scope: @scope)
+      model.destroy if model
       model = MicroserviceModel.get_model(name: "#{@scope}__OPENC3__LOG", scope: @scope)
       model.destroy if model
       model = MicroserviceModel.get_model(name: "#{@scope}__NOTIFICATION__LOG", scope: @scope)
@@ -182,11 +251,18 @@ module OpenC3
       model.destroy if model
       model = MicroserviceModel.get_model(name: "#{@scope}__PACKETLOG__UNKNOWN", scope: @scope)
       model.destroy if model
+      model = MicroserviceModel.get_model(name: "#{@scope}__PERIODIC__#{@scope}", scope: @scope)
+      model.destroy if model
+      # Delete the topics we created for the scope
+      Topic.del("#{@scope}__COMMAND__{UNKNOWN}__UNKNOWN")
+      Topic.del("#{@scope}__TELEMETRY__{UNKNOWN}__UNKNOWN")
+      Topic.del("#{@scope}__openc3_targets")
+      Topic.del("#{@scope}__CONFIG")
     end
 
     def seed_database
       setting = SettingsModel.get(name: 'source_url')
-      SettingsModel.set({ name: 'source_url', data: 'https://github.com/OpenC3/openc3' }, scope: @scope) unless setting
+      SettingsModel.set({ name: 'source_url', data: 'https://github.com/OpenC3/cosmos' }, scope: @scope) unless setting
     end
   end
 end

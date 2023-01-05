@@ -29,6 +29,8 @@ require 'openc3/utilities/bucket'
 require 'openc3/models/scope_model'
 require 'openc3/models/plugin_model'
 require 'openc3/models/gem_model'
+require 'openc3/models/migration_model'
+require 'openc3/models/tool_model'
 require 'openc3/packets/packet_config'
 require 'openc3/bridge/bridge'
 require 'ostruct'
@@ -38,9 +40,9 @@ require 'fileutils'
 require 'find'
 require 'json'
 require 'redis'
-require 'psych'
 require 'erb'
 require 'pp'
+# require 'psych' # Psych code is commented out
 
 $redis_url = "redis://#{ENV['OPENC3_REDIS_HOSTNAME']}:#{ENV['OPENC3_REDIS_PORT']}"
 # Initialize the connection to the bucket library
@@ -62,16 +64,16 @@ def print_usage
   puts "Usage:"
   puts "  cli help                          # Displays this information"
   puts "  cli rake                          # Runs rake in the local directory"
-  puts "  cli validate /PATH/FILENAME.gem SCOPE variables.txt # Validate a OpenC3 plugin gem file"
-  puts "  cli load /PATH/FILENAME.gem SCOPE variables.txt     # Loads a OpenC3 plugin gem file"
-  puts "  cli generate plugin PLUGIN_NAME   # Generate a OpenC3 plugin"
+  puts "  cli validate /PATH/FILENAME.gem SCOPE variables.txt # Validate a COSMOS plugin gem file"
+  puts "  cli load /PATH/FILENAME.gem SCOPE variables.txt     # Loads a COSMOS plugin gem file"
+  puts "  cli generate plugin PLUGIN_NAME   # Generate a COSMOS plugin"
   puts "  #{MIGRATE_PARSER}"
-  puts "  cli bridge CONFIG_FILENAME        # Run OpenC3 host bridge"
+  puts "  cli bridge CONFIG_FILENAME        # Run COSMOS host bridge"
   puts "  cli bridgesetup CONFIG_FILENAME   # Create a default config file"
   puts "  cli geminstall GEMFILENAME SCOPE        # Install loaded gem to /gems"
   puts "  cli rubysloc                      # Counts Ruby SLOC recursively. Run with --help for more info."
   puts "  cli xtce_converter                # Convert to and from the XTCE format. Run with --help for more info."
-  puts "  cli cstol_converter               # Converts CSTOL files (.prc) to OpenC3. Run with --help for more info."
+  puts "  cli cstol_converter               # Converts CSTOL files (.prc) to COSMOS. Run with --help for more info."
   puts ""
 end
 
@@ -240,7 +242,7 @@ def xtce_converter(args)
     packet_config = OpenC3::PacketConfig.new
     puts "Processing #{options[:import]}..."
     packet_config.process_file(options[:import], nil)
-    puts "Writing OpenC3 config files to #{options[:output]}/"
+    puts "Writing COSMOS config files to #{options[:output]}/"
     packet_config.to_config(options[:output])
     exit(0)
   elsif options[:plugin] && options[:output]
@@ -297,7 +299,7 @@ def put_into_archive(disk_file_path, io, zip_file_path)
 end
 
 def validate_plugin(plugin_file_path, scope:, variables_file: nil)
-  ENV['OpenC3_NO_STORE'] = '1' # it can be anything
+  ENV['OPENC3_NO_STORE'] = '1' # it can be anything
   OpenC3::Logger.stdout = false
   OpenC3::Logger.level = OpenC3::Logger::DEBUG
   scope ||= 'DEFAULT'
@@ -457,7 +459,7 @@ end
 
 def get_redis_keys
   redis = Redis.new(url: $redis_url, username: ENV['OPENC3_REDIS_USERNAME'], password: ENV['OPENC3_REDIS_PASSWORD'])
-  puts "\n--- OpenC3 Redis database keys ---"
+  puts "\n--- COSMOS Redis database keys ---"
   cursor = 0
   keys = []
   loop do
@@ -479,6 +481,40 @@ def get_redis_keys
     end
   end
   puts "Packets Defs: #{keys.select { |item| item[/^tlm__/] }}"
+end
+
+def run_migrations(folder)
+  # Determine if this is a brand new installation (no tools installed)
+  # We don't run migrations on new installations
+  tools = OpenC3::ToolModel.names(scope: 'DEFAULT')
+  if tools.length <= 0
+    puts "Brand new installation detected"
+    brand_new = true
+  else
+    puts "Checking for needed migrations..."
+    brand_new = false
+  end
+
+  # Run each newly discovered migration unless brand_new
+  folder = "/openc3/lib/openc3/migrations" unless folder
+  migrations = OpenC3::MigrationModel.all
+  entries = Dir.entries(folder).sort # run in alphabetical order
+  entries.each do |entry|
+    name = File.basename(entry)
+    extension = File.extname(name)
+    if extension == '.rb' and not migrations[name]
+      unless brand_new
+        puts "Running Migration: #{name}"
+        require File.join(folder, entry)
+      end
+      OpenC3::MigrationModel.new(name: name).create
+    end
+  end
+  if brand_new
+    puts "All migrations skipped"
+  else
+    puts "Migrations complete"
+  end
 end
 
 if __FILE__ == $0
@@ -593,6 +629,9 @@ if __FILE__ == $0
       client.create(ENV['OPENC3_LOGS_BUCKET'])
       client.create(ENV['OPENC3_TOOLS_BUCKET'])
       client.ensure_public(ENV['OPENC3_TOOLS_BUCKET'])
+
+    when 'runmigrations'
+      run_migrations(ARGV[1])
 
     else # Unknown task
       print_usage()

@@ -17,7 +17,7 @@
 # All changes Copyright 2022, OpenC3, Inc.
 # All Rights Reserved
 #
-# This file may also be used under the terms of a commercial license 
+# This file may also be used under the terms of a commercial license
 # if purchased from OpenC3, Inc.
 
 require 'spec_helper'
@@ -129,15 +129,6 @@ module OpenC3
       end
     end
 
-    describe "as_config" do
-      it "exports tool as OpenC3 configuration" do
-        model = ToolModel.new(folder_name: "FOLDER", name: "TEST", scope: "DEFAULT")
-        expect(model.as_config).to match(/TOOL FOLDER "TEST"/)
-        model = ToolModel.new(name: "TEST2", scope: "DEFAULT")
-        expect(model.as_config).to match(/TOOL nil "TEST2"/)
-      end
-    end
-
     describe "handle_config" do
       it "parses tool specific keywords" do
         model = ToolModel.new(name: "TEST", scope: "DEFAULT")
@@ -173,7 +164,7 @@ module OpenC3
         folder = "DEMO"
         name = "DEMO"
         dir = File.join(SPEC_DIR, "install")
-        expect(s3).to receive(:put_object).with(bucket: 'tools', key: "#{name}/index.html", body: anything, cache_control: "no-cache", content_type: "text/html", metadata: nil)
+        expect(s3).to receive(:put_object).with(bucket: 'tools', key: "#{name}/index.html", body: anything, cache_control: "no-store", content_type: "text/html", metadata: nil)
 
         model = ToolModel.new(folder_name: folder, name: name, scope: scope, plugin: 'PLUGIN')
         model.create
