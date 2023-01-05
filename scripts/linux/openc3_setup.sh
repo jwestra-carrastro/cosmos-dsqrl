@@ -41,7 +41,7 @@ if [ "$?" -ne 0 ]; then
   exit 1
 fi
 
-docker-compose --version
+docker-compose version
 if [ "$?" -ne 0 ]; then
   echo "ERROR: docker-compose is not installed, please install and try again." 1>&2
   echo "${0} FAILED" 1>&2

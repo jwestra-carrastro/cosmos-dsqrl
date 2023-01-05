@@ -1,32 +1,90 @@
 {
-    "DEV": {
-        "id": 0,
-        "description": "Development configuration where all cards are available",
-        "cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"]
-    },
-    "PCC": {
-        "id": 1,
-        "description": "Power Converter Card",
-        "cards": ["PCC"]
-    },
-    "DIG": {
-        "id": 2,
-        "description": "Digitizer Card",
-        "cards": ["DIG"]
-    },
-    "LPCLSC": {
-        "id": 3,
-	"description": "Laser Pump and Seed Cards",
-        "cards": ["LPC", "LSC"]
-    },
-    "OC_FEICMDC": {
-        "id": 4,
-        "description": "Ocellus Front-end Interface and Mirror Driver Cards",
-        "cards": ["OC_FEIC", "OC_MDC"]
-    },
-    "SQ_FEICMDC": {
-        "id": 5,
-        "description": "SQRLi Front-end Interface and Mirror Driver Cards",
-        "cards": ["SQ_FEIC", "SQ_MDC"]
-    }
+	"JWESTRA": {
+		"id": 0,
+		"name": "Joseph Westra",
+		"role": "Lead Developer",
+		"access": "All Cards",
+		"cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS32", "KS33", "KS34", "MXQP"]
+	},
+	"MLIN": {
+		"id": 1,
+		"name": "Mike Lin",
+		"role": "Card Designer",
+		"access": "Power Converter Card",
+		"cards": ["PCC"],
+		"power_supplies": ["KS32", "KS34", "MXQP"]
+	},
+	"LLABONTE": {
+		"id": 2,
+		"name": "Lonnie Labonte",
+		"role": "Card Designer",
+		"access": "Digitizer Card",
+		"cards": ["DIG"],
+		"power_supplies": ["KS33", "KS34", "MXQP"]
+	},
+	"RHEYDER": {
+		"id": 3,
+		"name": "Roy Heyder",
+		"role": "Card Designer",
+		"access": "Laser Pump and Seed Cards",
+		"cards": ["LPC", "LSC"],
+		"power_supplies": ["KS34", "MXQP"]
+	},
+	"DRUSLEY": {
+		"id": 4,
+		"name": "Dakota Rusley",
+		"role": "Card Designer",
+		"access": "Ocellus Front-end Interface and Mirror Driver Cards",
+		"cards": ["OC_FEIC", "OC_MDC"],
+		"power_supplies": ["KS34", "MXQP"]
+	},
+	"ELAURILA": {
+		"id": 5,
+		"name": "Erik Laurila",
+		"role": "Card Designer",
+		"access": "SQRLi Front-end Interface and Mirror Driver Cards",
+		"cards": ["SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS34", "MXQP"]
+	},
+	"HSTELLO": {
+		"id": 6,
+		"name": "Harry Stello",
+		"role": "Lead FPGA Designer",
+		"access": "All Cards",
+		"cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS32", "KS33", "KS34", "MXQP"]
+	},
+	"JTRULEAR": {
+		"id": 7,
+		"name": "Justin Trulear",
+		"role": "Developer",
+		"access": "All Cards",
+		"cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS32", "KS33", "KS34", "MXQP"]
+	},
+	"JHUNT": {
+		"id": 8,
+		"name": "Julius Hunt",
+		"role": "Developer",
+		"access": "All Cards",
+		"cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS32", "KS33", "KS34", "MXQP"]
+	},
+	"CDAILEY": {
+		"id": 9,
+		"name": "Christopher Dailey",
+		"role": "FPGA Designer",
+		"access": "All Cards",
+		"cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS32", "KS33", "KS34", "MXQP"]
+	},
+	"JGREGORY": {
+		"id": 10,
+		"name": "Jeremy Gregory",
+		"role": "Developer",
+		"access": "All Cards",
+		"cards": ["PCC", "DIG", "LPC", "LSC", "OC_FEIC", "OC_MDC", "SQ_FEIC", "SQ_MDC"],
+		"power_supplies": ["KS32", "KS33", "KS34", "MXQP"]
+	}
 }
